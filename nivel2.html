@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nivel 2 — Gráficas y Planos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  /* =========================================================
+     PALETA — cambiar estas variables alcanza para retintar
+     todo el nivel (pensado para subir la intensidad en
+     futuros niveles, como veníamos charlando)
+  ========================================================= */
+  :root{
+    --color-primario: #FA7268;      /* salmón principal */
+    --color-primario-claro: #FFD9CF; /* salmón pastel, fondos suaves */
+    --color-acento: #E85A4F;         /* salmón/coral más oscuro, hover/activo */
+    --color-fondo: #FFF6F4;
+    --color-tarjeta: #FFFFFF;
+    --color-texto: #3A2A28;
+    --color-texto-suave: #8A6B66;
+    --color-exito: #4CAF82;
+    --color-exito-fondo: #E7F6EE;
+    --color-error: #D6564B;
+    --color-error-fondo: #FCEAE8;
+    --color-borde: #F3D9D3;
+    --radio: 16px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body{
+    margin:0;
+    font-family:'Nunito', sans-serif;
+    background:var(--color-fondo);
+    color:var(--color-texto);
+    display:flex;
+    justify-content:center;
+    padding:24px 16px 60px;
+  }
+
+  .contenedor{
+    width:100%;
+    max-width:640px;
+  }
+
+  header{
+    text-align:center;
+    margin-bottom:20px;
+  }
+
+  header h1{
+    font-size:1.5rem;
+    font-weight:800;
+    margin:0 0 4px;
+    color:var(--color-acento);
+  }
+
+  header p{
+    margin:0;
+    color:var(--color-texto-suave);
+    font-size:0.95rem;
+  }
+
+  /* Barra de progreso */
+  .progreso-wrap{
+    margin:20px 0 24px;
+  }
+  .progreso-texto{
+    display:flex;
+    justify-content:space-between;
+    font-size:0.85rem;
+    color:var(--color-texto-suave);
+    margin-bottom:6px;
+    font-weight:600;
+  }
+  .progreso-barra{
+    height:8px;
+    border-radius:99px;
+    background:var(--color-primario-claro);
+    overflow:hidden;
+  }
+  .progreso-relleno{
+    height:100%;
+    background:var(--color-primario);
+    border-radius:99px;
+    transition:width 0.35s ease;
+  }
+
+  /* Tarjeta de pregunta */
+  .tarjeta{
+    background:var(--color-tarjeta);
+    border-radius:var(--radio);
+    padding:22px 20px 24px;
+    box-shadow:0 4px 18px rgba(232,90,79,0.08);
+    border:1px solid var(--color-borde);
+  }
+
+  .etiqueta-tipo{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    font-size:0.78rem;
+    font-weight:700;
+    color:var(--color-acento);
+    background:var(--color-primario-claro);
+    padding:4px 10px;
+    border-radius:99px;
+    margin-bottom:14px;
+  }
+
+  .enunciado{
+    font-size:1.08rem;
+    font-weight:700;
+    margin:0 0 18px;
+    line-height:1.4;
+  }
+
+  .visual-wrap{
+    margin-bottom:20px;
+    display:flex;
+    justify-content:center;
+    min-height:40px;
+  }
+
+  .visual-wrap canvas{
+    max-width:100%;
+  }
+
+  .plano-svg{
+    width:100%;
+    max-width:300px;
+    height:auto;
+    display:block;
+  }
+
+  .leyenda-plano{
+    font-size:0.82rem;
+    color:var(--color-texto-suave);
+    text-align:center;
+    margin:0 0 10px;
+    font-weight:600;
+  }
+
+  .visual-error{
+    font-size:0.85rem;
+    color:var(--color-texto-suave);
+    text-align:center;
+    padding:20px;
+  }
+
+  /* Opciones */
+  .opciones{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+
+  .opcion{
+    text-align:left;
+    padding:13px 16px;
+    border-radius:12px;
+    border:2px solid var(--color-borde);
+    background:var(--color-tarjeta);
+    font-family:inherit;
+    font-size:1rem;
+    font-weight:600;
+    color:var(--color-texto);
+    cursor:pointer;
+    transition:border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+  }
+
+  .opcion:hover:not(:disabled){
+    border-color:var(--color-primario);
+    transform:translateY(-1px);
+  }
+
+  .opcion:disabled{
+    cursor:default;
+  }
+
+  .opcion.correcta{
+    border-color:var(--color-exito);
+    background:var(--color-exito-fondo);
+    color:#256B4B;
+  }
+
+  .opcion.incorrecta{
+    border-color:var(--color-error);
+    background:var(--color-error-fondo);
+    color:#8C332B;
+  }
+
+  /* Feedback */
+  .feedback{
+    margin-top:14px;
+    padding:12px 14px;
+    border-radius:12px;
+    font-size:0.92rem;
+    font-weight:600;
+    line-height:1.45;
+    display:none;
+  }
+  .feedback.mostrar{ display:block; }
+  .feedback.exito{ background:var(--color-exito-fondo); color:#256B4B; }
+  .feedback.error{ background:var(--color-error-fondo); color:#8C332B; }
+  .feedback .explicacion{
+    display:block;
+    font-weight:400;
+    margin-top:4px;
+    opacity:0.9;
+  }
+
+  /* Botón siguiente */
+  .btn-siguiente{
+    margin-top:16px;
+    width:100%;
+    padding:13px;
+    border:none;
+    border-radius:12px;
+    background:var(--color-primario);
+    color:#fff;
+    font-family:inherit;
+    font-weight:700;
+    font-size:1rem;
+    cursor:pointer;
+    display:none;
+  }
+  .btn-siguiente.mostrar{ display:block; }
+  .btn-siguiente:hover{ background:var(--color-acento); }
+
+  /* Pantalla final */
+  .final{
+    text-align:center;
+    padding:30px 20px;
+  }
+  .final .puntaje{
+    font-size:2.6rem;
+    font-weight:800;
+    color:var(--color-acento);
+    margin:10px 0;
+  }
+  .final p{ color:var(--color-texto-suave); }
+  .btn-repetir{
+    margin-top:18px;
+    padding:13px 28px;
+    border:none;
+    border-radius:12px;
+    background:var(--color-primario);
+    color:#fff;
+    font-family:inherit;
+    font-weight:700;
+    font-size:1rem;
+    cursor:pointer;
+  }
+  .btn-repetir:hover{ background:var(--color-acento); }
+
+  .oculto{ display:none !important; }
+</style>
+</head>
+<body>
+
+<div class="contenedor">
+  <header>
+    <h1>Nivel 2</h1>
+    <p>Gráficas y planos — 20 preguntas</p>
+  </header>
+
+  <div class="progreso-wrap">
+    <div class="progreso-texto">
+      <span id="progreso-actual">Pregunta 1 de 20</span>
+      <span id="progreso-aciertos"></span>
+    </div>
+    <div class="progreso-barra"><div class="progreso-relleno" id="progreso-relleno"></div></div>
+  </div>
+
+  <div class="tarjeta" id="tarjeta-pregunta">
+    <span class="etiqueta-tipo" id="etiqueta-tipo"></span>
+    <p class="enunciado" id="enunciado"></p>
+    <div class="visual-wrap" id="visual-wrap"></div>
+    <div class="opciones" id="opciones"></div>
+    <div class="feedback" id="feedback"></div>
+    <button class="btn-siguiente" id="btn-siguiente">Siguiente →</button>
+  </div>
+
+  <div class="tarjeta final oculto" id="tarjeta-final">
+    <p>¡Completaste el Nivel 2!</p>
+    <div class="puntaje" id="puntaje-final">0/20</div>
+    <p>Podés repetirlo cuando quieras: el orden de las opciones cambia cada vez.</p>
+    <button class="btn-repetir" id="btn-repetir">Repetir nivel</button>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   BANCO DE PREGUNTAS — Nivel 2
+   Preguntas y respuestas fijas (a pedido de Nati); lo único
+   que se reordena en cada intento es el orden de las opciones.
+
+   Cada pregunta tiene "explicacion": el razonamiento que se
+   muestra después de responder (acierte o no), para que sea
+   una instancia de aprendizaje y no solo "la respuesta es X".
+
+   Los dos tipos (gráfico/plano) están intercalados a propósito
+   para que ambos se vean desde el arranque del cuestionario.
+   Los planos van de más simples a más complejos (los últimos
+   dos son de área compuesta).
+
+   Para editar contenido: tocá el texto, los valores, las
+   opciones, "correcta" (índice dentro de "opciones" tal cual
+   está escrito) o "explicacion". El mezclado de orden se hace
+   en tiempo de ejecución, no hace falta tocar nada más.
+========================================================= */
+
+const coloresGrafico = ['#FA7268', '#FFAB91', '#E8998D', '#C97C73', '#FFC9BC', '#D96C57'];
+
+const preguntasGrafico = [
+  {
+    tipo: 'grafico', tipoGrafico: 'bar',
+    pregunta: '¿En qué mes se registraron más ventas?',
+    datos: { labels: ['Enero','Febrero','Marzo','Abril','Mayo'], valores: [120,150,90,200,175] },
+    opciones: ['Marzo','Abril','Mayo','Enero'], correcta: 1,
+    explicacion: 'Abril es la barra más alta del gráfico, con 200.'
+  },
+  {
+    tipo: 'grafico', tipoGrafico: 'line',
+    pregunta: '¿Cuál fue la temperatura máxima registrada en la semana?',
+    datos: { labels: ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'], valores: [18,20,19,23,25,22,17] },
+    opciones: ['23 °C','22 °C','25 °C','20 °C'], correcta: 2,
+    explicacion: 'El punto más alto de la curva es el viernes, con 25 °C.'
+  },
+  {
+    tipo: 'grafico', tipoGrafico: 'pie',
+    pregunta: '¿Qué porcentaje del curso prefiere fútbol o básquet, sumados?',
+    datos: { labels: ['Fútbol','Básquet','Vóley','Otros'], valores: [40,25,20,15] },
+    opciones: ['65%','60%','45%','75%'], correcta: 0,
+    explicacion: 'Fútbol (40%) + Básquet (25%) = 65%.'
+  },
+  {
+    tipo: 'grafico', tipoGrafico: 'bar',
+    pregunta: '¿Cuál es el promedio de asistencia a lo largo de la semana?',
+    datos: { labels: ['Lun','Mar','Mié','Jue','Vie'], valores: [28,30,25,29,22] },
+    opciones: ['26,8','28','27,5','25'], correcta: 0,
+    explicacion: '(28+30+25+29+22) ÷ 5 = 134 ÷ 5 = 26,8.'
+  },
+  {
+    tipo: 'grafico', tipoGrafico: 'line',
+    pregunta: '¿Entre qué años los ingresos de la empresa cayeron respecto al año anterior?',
+    datos: { labels: ['2021','2022','2023','2024','2025'], valores: [50,55,53,60,68] },
+    opciones: ['2022 a 2023','2021 a 2022','2023 a 2024','2024 a 2025'], correcta: 0,
+    explicacion: 'De 2022 (55) a 2023 (53) la curva baja; en el resto de los tramos sube.'
+  },
+  {
+    tipo: 'grafico', tipoGrafico: 'pie',
+    pregunta: '¿Qué porcentaje del gasto mensual se destina a alquiler y transporte juntos?',
+    datos: { labels: ['Alquiler','Comida','Transporte','Ocio','Ahorro'], valores: [35,25,15,10,15] },
+    opciones: ['50%','40%','60%','45%'], correcta: 0,
+    explicacion: 'Alquiler (35%) + Transporte (15%) = 50%.'
+  },
+  {
+    tipo: 'grafico', tipoGrafico: 'bar',
+    pregunta: '¿Cuál es la diferencia entre el trimestre con más libros leídos y el de menos?',
+    datos: { labels: ['1er trim.','2do trim.','3er trim.','4to trim.'], valores: [5,8,6,10] },
+    opciones: ['5','8','3','6'], correcta: 0,
+    explicacion: 'El 4to trimestre (10) es el máximo y el 1ro (5) el mínimo: 10 − 5 = 5.'
+  },
+  {
+    tipo: 'grafico', tipoGrafico: 'bar',
+    pregunta: '¿Cuál es la diferencia entre las ventas de abril y las de febrero?',
+    datos: { labels: ['Enero','Febrero','Marzo','Abril','Mayo'], valores: [120,150,90,200,175] },
+    opciones: ['50','80','30','20'], correcta: 0,
+    explicacion: 'Abril (200) menos febrero (150) = 50.'
+  },
+  {
+    tipo: 'grafico', tipoGrafico: 'line',
+    pregunta: '¿Entre qué días consecutivos se dio el mayor aumento de temperatura?',
+    datos: { labels: ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'], valores: [18,20,19,23,25,22,17] },
+    opciones: ['Miércoles a jueves','Lunes a martes','Jueves a viernes','Viernes a sábado'], correcta: 0,
+    explicacion: 'De miércoles (19) a jueves (23) subió 4°C, el mayor salto entre dos días seguidos.'
+  },
+  {
+    tipo: 'grafico', tipoGrafico: 'pie',
+    pregunta: '¿Cuál es el deporte menos elegido?',
+    datos: { labels: ['Fútbol','Básquet','Vóley','Otros'], valores: [40,25,20,15] },
+    opciones: ['Vóley','Básquet','Otros','Fútbol'], correcta: 2,
+    explicacion: '"Otros" es la porción más chica de la torta, con 15%.'
+  },
+  {
+    tipo: 'grafico', tipoGrafico: 'bar',
+    pregunta: '¿Qué día tuvo la menor asistencia?',
+    datos: { labels: ['Lun','Mar','Mié','Jue','Vie'], valores: [28,30,25,29,22] },
+    opciones: ['Miércoles','Viernes','Lunes','Jueves'], correcta: 1,
+    explicacion: 'Viernes es la barra más baja, con 22.'
+  },
+  {
+    tipo: 'grafico', tipoGrafico: 'line',
+    pregunta: '¿Cuál fue el crecimiento total de los ingresos entre 2021 y 2025?',
+    datos: { labels: ['2021','2022','2023','2024','2025'], valores: [50,55,53,60,68] },
+    opciones: ['18 mil','15 mil','20 mil','13 mil'], correcta: 0,
+    explicacion: '2025 (68) menos 2021 (50) = 18 (en miles).'
+  },
+];
+
+
+// =========================================================
+// PLANO ÚNICO DE LA CASA — se reutiliza en las 8 preguntas
+// de plano; lo único que cambia es qué ambiente(s) se resalta.
+// Escala: 1 cuadrado de grilla = 0,5 m (32px = 1 m).
+// =========================================================
+const salaRooms = [
+  { id:'living',      x:16,  y:16,  w:128, h:96,  label:'LIVING',
+    mueble:{x:32,y:88,w:48,h:16,label:'sofá'} },
+  { id:'comedor',      x:144, y:16,  w:112, h:96,  label:'COMEDOR',
+    mueble:{x:160,y:32,w:64,h:24,label:'mesa'} },
+  { id:'cocina',       x:256, y:16,  w:80,  h:128, label:'COCINA',
+    mueble:{x:264,y:24,w:56,h:14,label:'mesada'} },
+  { id:'dormitorio1',  x:16,  y:112, w:128, h:128, label:'DORMITORIO 1',
+    mueble:{x:96,y:176,w:40,h:24,label:'cama'} },
+  { id:'dormitorio2',  x:144, y:112, w:112, h:128, label:'DORMITORIO 2',
+    mueble:{x:160,y:128,w:48,h:24,label:'cama'} },
+  { id:'baño',         x:256, y:144, w:64,  h:64,  label:'BAÑO' },
+  { id:'garaje',       x:256, y:208, w:96,  h:64,  label:'GARAJE', labelY:16,
+    mueble:{x:272,y:232,w:56,h:24,label:'auto'} },
+];
+const vestidorCasa = { x:16, y:112, w:64, h:48, label:'VESTIDOR' }; // dentro del dormitorio 1
+
+function dibujarCasa(resaltarIds){
+  let svg = `<svg class="plano-svg" viewBox="0 0 368 288" xmlns="http://www.w3.org/2000/svg">`;
+  svg += `<defs><pattern id="casaGrid" width="16" height="16" patternUnits="userSpaceOnUse"><path d="M16 0 L0 0 0 16" fill="none" stroke="#F0DAD5" stroke-width="1"/></pattern></defs>`;
+  svg += `<rect x="0" y="0" width="368" height="288" fill="url(#casaGrid)"/>`;
+
+  salaRooms.forEach(r => {
+    const activa = resaltarIds.includes(r.id);
+    if(r.id === 'dormitorio1' && activa){
+      // Forma en L: se excluye visualmente el vestidor
+      svg += `<rect x="${r.x}" y="${r.y+48}" width="${r.w}" height="${r.h-48}" fill="#FFD9CF" stroke="#E85A4F" stroke-width="2.5"/>`;
+      svg += `<rect x="${r.x+64}" y="${r.y}" width="${r.w-64}" height="48" fill="#FFD9CF" stroke="#E85A4F" stroke-width="2.5"/>`;
+    } else {
+      const fill = activa ? '#FFD9CF' : '#FFFFFF';
+      const stroke = activa ? '#E85A4F' : '#D9AFA6';
+      svg += `<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="${fill}" stroke="${stroke}" stroke-width="2"/>`;
+    }
+    svg += `<text x="${r.x + r.w/2}" y="${r.y + (r.labelY ?? r.h/2)}" font-size="9" text-anchor="middle" font-family="Nunito" fill="#8A6B66" font-weight="700">${r.label}</text>`;
+    if(r.mueble){
+      svg += `<rect x="${r.mueble.x}" y="${r.mueble.y}" width="${r.mueble.w}" height="${r.mueble.h}" fill="#FA7268" opacity="0.4"/>`;
+      svg += `<text x="${r.mueble.x + r.mueble.w/2}" y="${r.mueble.y + r.mueble.h/2 + 3}" font-size="7" text-anchor="middle" font-family="Nunito" fill="#5c3f3a">${r.mueble.label}</text>`;
+    }
+  });
+
+  // El vestidor se dibuja siempre igual, sin resaltar (no es un ambiente en sí)
+  svg += `<rect x="${vestidorCasa.x}" y="${vestidorCasa.y}" width="${vestidorCasa.w}" height="${vestidorCasa.h}" fill="#FFFFFF" stroke="#D9AFA6" stroke-width="2"/>`;
+  svg += `<text x="${vestidorCasa.x + vestidorCasa.w/2}" y="${vestidorCasa.y + vestidorCasa.h/2}" font-size="7" text-anchor="middle" font-family="Nunito" fill="#8A6B66" font-weight="700">VESTIDOR</text>`;
+
+  svg += `</svg>`;
+  return svg;
+}
+
+const preguntasPlano = [
+  {
+    tipo: 'plano',
+    pregunta: '¿Cuál es el área del living?',
+    svg: dibujarCasa(['living']),
+    opciones: ['12 m²','10 m²','14 m²','9 m²'], correcta: 0,
+    explicacion: 'Living: 4 m × 3 m = 12 m².'
+  },
+  {
+    tipo: 'plano',
+    pregunta: '¿Cuál es el área de la cocina?',
+    svg: dibujarCasa(['cocina']),
+    opciones: ['10 m²','8 m²','12,5 m²','9 m²'], correcta: 0,
+    explicacion: 'Cocina: 2,5 m × 4 m = 10 m².'
+  },
+  {
+    tipo: 'plano',
+    pregunta: '¿Cuál es el área del baño?',
+    svg: dibujarCasa(['baño']),
+    opciones: ['4 m²','6 m²','3,5 m²','5 m²'], correcta: 0,
+    explicacion: 'Baño: 2 m × 2 m = 4 m².'
+  },
+  {
+    tipo: 'plano',
+    pregunta: '¿Cuál es el área del garaje?',
+    svg: dibujarCasa(['garaje']),
+    opciones: ['6 m²','5 m²','7,5 m²','8 m²'], correcta: 0,
+    explicacion: 'Garaje: 3 m × 2 m = 6 m².'
+  },
+  {
+    tipo: 'plano',
+    pregunta: '¿Cuál es el área del comedor?',
+    svg: dibujarCasa(['comedor']),
+    opciones: ['10,5 m²','9 m²','12 m²','11 m²'], correcta: 0,
+    explicacion: 'Comedor: 3,5 m × 3 m = 10,5 m².'
+  },
+  {
+    tipo: 'plano',
+    pregunta: '¿Cuál es el área del dormitorio 2?',
+    svg: dibujarCasa(['dormitorio2']),
+    opciones: ['14 m²','12,5 m²','16 m²','13 m²'], correcta: 0,
+    explicacion: 'Dormitorio 2: 3,5 m × 4 m = 14 m².'
+  },
+  {
+    tipo: 'plano',
+    pregunta: 'El vestidor (el cuadrito sin resaltar, dentro del dormitorio 1) no forma parte del dormitorio. ¿Cuál es el área útil del dormitorio 1?',
+    svg: dibujarCasa(['dormitorio1']),
+    opciones: ['13 m²','16 m²','19 m²','10 m²'], correcta: 0,
+    explicacion: 'Dormitorio 1 completo: 4 m × 4 m = 16 m². Vestidor: 2 m × 1,5 m = 3 m². Área útil = 16 − 3 = 13 m².'
+  },
+  {
+    tipo: 'plano',
+    pregunta: '¿Cuál es el área total si juntamos el living y el comedor (los dos ambientes resaltados)?',
+    svg: dibujarCasa(['living','comedor']),
+    opciones: ['22,5 m²','21 m²','24 m²','19,5 m²'], correcta: 0,
+    explicacion: 'Living: 12 m². Comedor: 10,5 m². Juntos: 12 + 10,5 = 22,5 m².'
+  },
+];
+
+// Intercalado: 3 gráficos, 2 planos, repetido 4 veces (12 gráficos + 8 planos = 20)
+// Los planos más complejos (los últimos del array) quedan hacia el final.
+const preguntas = [];
+{
+  let ig = 0, ip = 0;
+  for (let bloque = 0; bloque < 4; bloque++) {
+    preguntas.push(preguntasGrafico[ig++], preguntasGrafico[ig++], preguntasGrafico[ig++]);
+    preguntas.push(preguntasPlano[ip++], preguntasPlano[ip++]);
+  }
+}
+
+/* =========================================================
+   ESTADO Y LÓGICA
+========================================================= */
+let indiceActual = 0;
+let aciertos = 0;
+let ordenOpciones = [];
+let chartActual = null;
+let respondida = false;
+
+const elEtiquetaTipo = document.getElementById('etiqueta-tipo');
+const elEnunciado = document.getElementById('enunciado');
+const elVisualWrap = document.getElementById('visual-wrap');
+const elOpciones = document.getElementById('opciones');
+const elFeedback = document.getElementById('feedback');
+const elBtnSiguiente = document.getElementById('btn-siguiente');
+const elProgresoActual = document.getElementById('progreso-actual');
+const elProgresoAciertos = document.getElementById('progreso-aciertos');
+const elProgresoRelleno = document.getElementById('progreso-relleno');
+const elTarjetaPregunta = document.getElementById('tarjeta-pregunta');
+const elTarjetaFinal = document.getElementById('tarjeta-final');
+const elPuntajeFinal = document.getElementById('puntaje-final');
+
+function mezclarOpciones(pregunta){
+  const arr = pregunta.opciones.map((texto, i) => ({texto, esCorrecta: i === pregunta.correcta}));
+  for(let i = arr.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function renderPregunta(){
+  respondida = false;
+  const p = preguntas[indiceActual];
+  ordenOpciones = mezclarOpciones(p);
+
+  elEtiquetaTipo.textContent = p.tipo === 'grafico' ? '📊 Gráfica' : '📐 Plano';
+  elEnunciado.textContent = p.pregunta;
+  elFeedback.className = 'feedback';
+  elFeedback.innerHTML = '';
+  elBtnSiguiente.classList.remove('mostrar');
+
+  elVisualWrap.innerHTML = '';
+  if(chartActual){ try{ chartActual.destroy(); }catch(e){} chartActual = null; }
+
+  if(p.tipo === 'grafico'){
+    // Si Chart.js no llegó a cargar (CDN lento/bloqueado), no rompemos
+    // el resto de la pregunta: mostramos un aviso y seguimos igual.
+    if(typeof Chart === 'undefined'){
+      elVisualWrap.innerHTML = '<div class="visual-error">(No se pudo cargar el gráfico — revisá tu conexión)</div>';
+    } else {
+      try{
+        const canvas = document.createElement('canvas');
+        canvas.width = 280; canvas.height = 220;
+        elVisualWrap.appendChild(canvas);
+        chartActual = new Chart(canvas.getContext('2d'), {
+          type: p.tipoGrafico,
+          data: {
+            labels: p.datos.labels,
+            datasets: [{
+              label: '',
+              data: p.datos.valores,
+              backgroundColor: p.tipoGrafico === 'line' ? 'rgba(250,114,104,0.15)' : coloresGrafico,
+              borderColor: p.tipoGrafico === 'line' ? '#FA7268' : '#E85A4F',
+              borderWidth: p.tipoGrafico === 'line' ? 3 : 1,
+              tension: 0.3,
+              fill: p.tipoGrafico === 'line'
+            }]
+          },
+          options: {
+            responsive: false,
+            plugins: { legend: { display: p.tipoGrafico === 'pie' } },
+            scales: p.tipoGrafico === 'pie' ? {} : { y: { beginAtZero: true } }
+          }
+        });
+      } catch(e){
+        elVisualWrap.innerHTML = '<div class="visual-error">(No se pudo dibujar el gráfico)</div>';
+      }
+    }
+  } else {
+    elVisualWrap.innerHTML = `<div><p class="leyenda-plano">Escala: cada cuadrado es de 0,5 m × 0,5 m.</p>${p.svg}</div>`;
+  }
+
+  elOpciones.innerHTML = '';
+  ordenOpciones.forEach((op) => {
+    const btn = document.createElement('button');
+    btn.className = 'opcion';
+    btn.textContent = op.texto;
+    btn.addEventListener('click', () => seleccionarOpcion(btn, op));
+    elOpciones.appendChild(btn);
+  });
+
+  elProgresoActual.textContent = `Pregunta ${indiceActual + 1} de ${preguntas.length}`;
+  elProgresoAciertos.textContent = indiceActual > 0 ? `${aciertos} correctas` : '';
+  elProgresoRelleno.style.width = `${(indiceActual / preguntas.length) * 100}%`;
+}
+
+function seleccionarOpcion(boton, opcionElegida){
+  if(respondida) return;
+  respondida = true;
+
+  const p = preguntas[indiceActual];
+  const botones = elOpciones.querySelectorAll('.opcion');
+  botones.forEach(b => b.disabled = true);
+
+  if(opcionElegida.esCorrecta){
+    boton.classList.add('correcta');
+    elFeedback.className = 'feedback mostrar exito';
+    elFeedback.innerHTML = `¡Correcto! <span class="explicacion">${p.explicacion}</span>`;
+    aciertos++;
+  } else {
+    boton.classList.add('incorrecta');
+    const correctaTexto = ordenOpciones.find(o => o.esCorrecta).texto;
+    botones.forEach(b => { if(b.textContent === correctaTexto) b.classList.add('correcta'); });
+    elFeedback.className = 'feedback mostrar error';
+    elFeedback.innerHTML = `No es esa. La respuesta correcta es ${correctaTexto}. <span class="explicacion">${p.explicacion}</span>`;
+  }
+
+  elBtnSiguiente.classList.add('mostrar');
+  elBtnSiguiente.textContent = indiceActual === preguntas.length - 1 ? 'Ver resultado' : 'Siguiente →';
+}
+
+elBtnSiguiente.addEventListener('click', () => {
+  indiceActual++;
+  if(indiceActual >= preguntas.length){
+    mostrarFinal();
+  } else {
+    renderPregunta();
+  }
+});
+
+function mostrarFinal(){
+  if(chartActual){ try{ chartActual.destroy(); }catch(e){} chartActual = null; }
+  elTarjetaPregunta.classList.add('oculto');
+  elTarjetaFinal.classList.remove('oculto');
+  elProgresoRelleno.style.width = '100%';
+  elProgresoActual.textContent = `Pregunta ${preguntas.length} de ${preguntas.length}`;
+  elProgresoAciertos.textContent = `${aciertos} correctas`;
+  elPuntajeFinal.textContent = `${aciertos}/${preguntas.length}`;
+}
+
+document.getElementById('btn-repetir').addEventListener('click', () => {
+  indiceActual = 0;
+  aciertos = 0;
+  elTarjetaFinal.classList.add('oculto');
+  elTarjetaPregunta.classList.remove('oculto');
+  renderPregunta();
+});
+
+renderPregunta();
+</script>
+</body>
+</html>
